@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fervent – Progress Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f9f5ff; font-family: Georgia, serif; }
+    #root { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 40px; }
+    button { font-family: Georgia, serif; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const CHAPTERS = [
+  { id:1,  title:"Prayer Is War",           focus:"The Enemy" },
+  { id:2,  title:"Know Your Enemy",          focus:"Spiritual Warfare" },
+  { id:3,  title:"Sealed with Prayer",       focus:"Your Focus" },
+  { id:4,  title:"The Fervency Factor",      focus:"Your Identity" },
+  { id:5,  title:"Winning the War Within",   focus:"Your Family" },
+  { id:6,  title:"Making the Ask",           focus:"Your Past" },
+  { id:7,  title:"The Grind",                focus:"Your Fears" },
+  { id:8,  title:"A Passionate Appeal",      focus:"Your Purity" },
+  { id:9,  title:"Your Calling",             focus:"Your Purpose" },
+  { id:10, title:"The Privilege of Prayer",  focus:"Your Relationships" },
+  { id:11, title:"Praying for Others",       focus:"Others" },
+  { id:12, title:"A Warrior's Manifesto",    focus:"Your Faith" },
+];
+
+const TASKS = [
+  { key:"read",      label:"Read Chapter",      icon:"📖" },
+  { key:"studied",   label:"Studied",           icon:"🔍" },
+  { key:"journaled", label:"Journaled",         icon:"✍️" },
+  { key:"prayed",    label:"Prayed",            icon:"🙏" },
+  { key:"memorized", label:"Memorized Verse",   icon:"📌" },
+  { key:"discussed", label:"Group Discussion",  icon:"💬" },
+];
+
+const BADGES = [
+  { id:"first",     icon:"🌱", label:"First Step",           desc:"Complete your first task",          check:(c,t)=>t>=1 },
+  { id:"warrior3",  icon:"⚔️", label:"Rising Warrior",       desc:"Complete 3 chapters",               check:(c,t)=>c>=3 },
+  { id:"halfway",   icon:"🔥", label:"Halfway There",         desc:"Complete 6 chapters",               check:(c,t)=>c>=6 },
+  { id:"prayer",    icon:"🙏", label:"Prayer Warrior",        desc:"Pray through all 12 chapters",      check:(c,t,p)=>CHAPTERS.every(ch=>p[ch.id]?.prayed) },
+  { id:"word",      icon:"📌", label:"Word Bearer",           desc:"Memorize all 12 verses",            check:(c,t,p)=>CHAPTERS.every(ch=>p[ch.id]?.memorized) },
+  { id:"scribe",    icon:"✍️", label:"The Scribe",            desc:"Journal through all 12 chapters",   check:(c,t,p)=>CHAPTERS.every(ch=>p[ch.id]?.journaled) },
+  { id:"community", icon:"💬", label:"Iron Sharpens Iron",    desc:"Complete all 12 group discussions", check:(c,t,p)=>CHAPTERS.every(ch=>p[ch.id]?.discussed) },
+  { id:"complete",  icon:"🏆", label:"Fervent Warrior",       desc:"Complete all 12 chapters fully",    check:(c,t)=>c===12 },
+];
+
+const COLORS = ["#7C3AED","#6D28D9","#8B5CF6","#9333EA","#7C3AED","#6D28D9","#8B5CF6","#9333EA","#7C3AED","#6D28D9","#8B5CF6","#9333EA"];
+const STORE_KEY = "fervent-progress-v1";
+
+const initProgress = () => {
+  try {
+    const r = localStorage.getItem(STORE_KEY);
+    const d = r ? JSON.parse(r) : {};
+    const p = {};
+    CHAPTERS.forEach(c => { p[c.id] = d[c.id] || { read:false, studied:false, journaled:false, prayed:false, memorized:false, discussed:false }; });
+    return p;
+  } catch { 
+    const p = {};
+    CHAPTERS.forEach(c => { p[c.id] = { read:false, studied:false, journaled:false, prayed:false, memorized:false, discussed:false }; });
+    return p;
+  }
+};
+
+const persist = (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch {} };
+
+function App() {
+  const [progress, setProgress] = useState(initProgress);
+  const [view, setView] = useState("dashboard"); // dashboard | chapters | chapter | badges
+  const [selected, setSelected] = useState(null);
+
+  const upd = (u) => { setProgress(u); persist(u); };
+
+  const toggle = (chId, key) => {
+    upd({...progress, [chId]:{...progress[chId],[key]:!progress[chId][key]}});
+  };
+
+  const chPct = (chId) => Math.round((Object.values(progress[chId]).filter(Boolean).length / TASKS.length) * 100);
+  const chDone = (chId) => chPct(chId) === 100;
+  const totalTasks = CHAPTERS.length * TASKS.length;
+  const completedTasks = CHAPTERS.reduce((s,c)=>s+Object.values(progress[c.id]).filter(Boolean).length, 0);
+  const overallPct = Math.round((completedTasks/totalTasks)*100);
+  const chapsDone = CHAPTERS.filter(c=>chDone(c.id)).length;
+
+  const badges = BADGES.map(b=>({...b, earned:b.check(chapsDone,completedTasks,progress)}));
+  const earnedCount = badges.filter(b=>b.earned).length;
+
+  const ch = CHAPTERS.find(c=>c.id===selected);
+
+  const goBack = () => {
+    if (view==="chapter") setView("chapters");
+    else setView("dashboard");
+  };
+
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#6D28D9,#9333EA)",padding:"24px 16px 18px",color:"white",textAlign:"center",position:"relative"}}>
+        {view==="dashboard" ? (
+          <a href="index.html" style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.2)",borderRadius:8,padding:"5px 12px",fontSize:12,color:"white",textDecoration:"none"}}>🏠</a>
+        ) : (
+          <button onClick={goBack} style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.2)",border:"none",color:"white",borderRadius:8,padding:"5px 12px",fontSize:12}}>← Back</button>
+        )}
+        <div style={{fontSize:10,letterSpacing:3,opacity:0.75,textTransform:"uppercase"}}>Priscilla Shirer</div>
+        <div style={{fontSize:24,fontWeight:"bold",letterSpacing:1}}>FERVENT</div>
+        <div style={{fontSize:11,opacity:0.7,marginTop:1}}>📊 Progress Tracker</div>
+      </div>
+
+      <div style={{padding:16}}>
+
+        {/* DASHBOARD */}
+        {view==="dashboard" && <>
+          {/* Ring */}
+          <div style={{background:"white",borderRadius:16,padding:20,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.08)",textAlign:"center"}}>
+            <div style={{position:"relative",width:120,height:120,margin:"0 auto 12px"}}>
+              <svg width="120" height="120" style={{transform:"rotate(-90deg)"}}>
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#f3eeff" strokeWidth="10"/>
+                <circle cx="60" cy="60" r="50" fill="none" stroke="url(#grad)" strokeWidth="10"
+                  strokeDasharray={`${2*Math.PI*50}`}
+                  strokeDashoffset={`${2*Math.PI*50*(1-overallPct/100)}`}
+                  strokeLinecap="round" style={{transition:"stroke-dashoffset 0.5s"}}/>
+                <defs>
+                  <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#6D28D9"/>
+                    <stop offset="100%" stopColor="#9333EA"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                <div style={{fontSize:26,fontWeight:"bold",color:"#6D28D9"}}>{overallPct}%</div>
+                <div style={{fontSize:10,color:"#888"}}>complete</div>
+              </div>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-around"}}>
+              <div><div style={{fontSize:20,fontWeight:"bold",color:"#6D28D9"}}>{chapsDone}</div><div style={{fontSize:11,color:"#888"}}>Chapters Done</div></div>
+              <div><div style={{fontSize:20,fontWeight:"bold",color:"#6D28D9"}}>{completedTasks}</div><div style={{fontSize:11,color:"#888"}}>Tasks Done</div></div>
+              <div><div style={{fontSize:20,fontWeight:"bold",color:"#6D28D9"}}>{earnedCount}</div><div style={{fontSize:11,color:"#888"}}>Badges</div></div>
+            </div>
+          </div>
+
+          {/* Nav cards */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+            <button onClick={()=>setView("chapters")} style={{background:"linear-gradient(135deg,#6D28D9,#9333EA)",borderRadius:12,padding:14,color:"white",border:"none",textAlign:"center"}}>
+              <div style={{fontSize:22,marginBottom:4}}>📋</div>
+              <div style={{fontWeight:"bold",fontSize:13}}>Chapter Tracker</div>
+              <div style={{fontSize:11,opacity:0.8}}>{chapsDone}/12 complete</div>
+            </button>
+            <button onClick={()=>setView("badges")} style={{background:"white",borderRadius:12,padding:14,border:"2px solid #e0d4ff",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+              <div style={{fontSize:22,marginBottom:4}}>🏅</div>
+              <div style={{fontWeight:"bold",fontSize:13,color:"#6D28D9"}}>Badges</div>
+              <div style={{fontSize:11,color:"#999"}}>{earnedCount}/{badges.length} earned</div>
+            </button>
+          </div>
+
+          {/* Task breakdown */}
+          <div style={{background:"white",borderRadius:12,padding:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+            <div style={{fontWeight:"bold",color:"#6D28D9",marginBottom:12}}>Task Breakdown</div>
+            {TASKS.map(task=>{
+              const done = CHAPTERS.filter(c=>progress[c.id][task.key]).length;
+              return (
+                <div key={task.key} style={{marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                    <div style={{fontSize:12,color:"#444"}}>{task.icon} {task.label}</div>
+                    <div style={{fontSize:12,color:"#9333EA"}}>{done}/12</div>
+                  </div>
+                  <div style={{background:"#f3eeff",borderRadius:20,height:6,overflow:"hidden"}}>
+                    <div style={{width:`${Math.round((done/12)*100)}%`,height:"100%",background:"linear-gradient(90deg,#6D28D9,#9333EA)",borderRadius:20,transition:"width 0.4s"}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>}
+
+        {/* CHAPTERS LIST */}
+        {view==="chapters" && <>
+          <div style={{fontWeight:"bold",color:"#6D28D9",marginBottom:12,fontSize:15}}>Chapter Tracker</div>
+          {CHAPTERS.map((c,i)=>{
+            const pct = chPct(c.id), done = chDone(c.id);
+            return (
+              <div key={c.id} onClick={()=>{setSelected(c.id);setView("chapter");}}
+                style={{background:"white",borderRadius:12,padding:"12px 14px",marginBottom:8,cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",border:done?"2px solid #7C3AED":"2px solid transparent"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                  <div style={{background:COLORS[i],color:"white",borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:"bold",flexShrink:0}}>{c.id}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:"bold",fontSize:13}}>{c.title}</div>
+                    <div style={{fontSize:11,color:"#999"}}>{c.focus}</div>
+                  </div>
+                  <div style={{fontSize:12,color:done?"#6D28D9":"#aaa",fontWeight:done?"bold":"normal"}}>{done?"✓":`${pct}%`}</div>
+                </div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {TASKS.map(t=>(
+                    <div key={t.key} style={{background:progress[c.id][t.key]?"#6D28D9":"#f3eeff",borderRadius:20,padding:"2px 8px",fontSize:10,color:progress[c.id][t.key]?"white":"#aaa"}}>{t.icon}</div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </>}
+
+        {/* CHAPTER DETAIL */}
+        {view==="chapter" && ch && <>
+          <div style={{background:`linear-gradient(135deg,${COLORS[ch.id-1]},#9333EA)`,borderRadius:12,padding:14,color:"white",marginBottom:14}}>
+            <div style={{fontSize:11,opacity:0.75}}>Chapter {ch.id} · {ch.focus}</div>
+            <div style={{fontSize:18,fontWeight:"bold",margin:"3px 0"}}>{ch.title}</div>
+            <div style={{fontSize:13,opacity:0.85,marginTop:4}}>{chPct(ch.id)}% complete</div>
+            <div style={{background:"rgba(255,255,255,0.25)",borderRadius:20,height:6,marginTop:8,overflow:"hidden"}}>
+              <div style={{width:`${chPct(ch.id)}%`,height:"100%",background:"white",borderRadius:20,transition:"width 0.4s"}}/>
+            </div>
+          </div>
+
+          <div style={{background:"white",borderRadius:12,padding:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+            <div style={{fontWeight:"bold",color:"#6D28D9",marginBottom:12}}>Mark Your Tasks</div>
+            {TASKS.map(task=>{
+              const done = progress[ch.id][task.key];
+              return (
+                <div key={task.key} onClick={()=>toggle(ch.id,task.key)}
+                  style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid #f3eeff",cursor:"pointer"}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",border:`2px solid ${done?"#6D28D9":"#e0d4ff"}`,background:done?"#6D28D9":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.2s"}}>
+                    {done && <span style={{color:"white",fontSize:13}}>✓</span>}
+                  </div>
+                  <div style={{fontSize:22,flexShrink:0}}>{task.icon}</div>
+                  <div style={{fontSize:13,color:done?"#6D28D9":"#333",fontWeight:done?"bold":"normal"}}>{task.label}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {chDone(ch.id) && (
+            <div style={{marginTop:14,background:"linear-gradient(135deg,#6D28D9,#9333EA)",borderRadius:12,padding:16,color:"white",textAlign:"center"}}>
+              <div style={{fontSize:28,marginBottom:4}}>🏆</div>
+              <div style={{fontWeight:"bold",fontSize:15}}>Chapter Complete!</div>
+              <div style={{fontSize:12,opacity:0.85,marginTop:2}}>You finished Chapter {ch.id} — keep going, Warrior.</div>
+            </div>
+          )}
+        </>}
+
+        {/* BADGES */}
+        {view==="badges" && <>
+          <div style={{fontWeight:"bold",color:"#6D28D9",marginBottom:4,fontSize:15}}>Badges</div>
+          <div style={{fontSize:12,color:"#888",marginBottom:14}}>{earnedCount} of {badges.length} earned</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {badges.map(b=>(
+              <div key={b.id} style={{background:"white",borderRadius:12,padding:14,textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)",border:b.earned?"2px solid #7C3AED":"2px solid transparent",opacity:b.earned?1:0.45}}>
+                <div style={{fontSize:32,marginBottom:6,filter:b.earned?"none":"grayscale(1)"}}>{b.icon}</div>
+                <div style={{fontWeight:"bold",fontSize:12,color:b.earned?"#6D28D9":"#aaa",marginBottom:3}}>{b.label}</div>
+                <div style={{fontSize:11,color:"#999",lineHeight:1.4}}>{b.desc}</div>
+                {b.earned && <div style={{fontSize:10,color:"#9333EA",marginTop:6,fontWeight:"bold"}}>EARNED ✓</div>}
+              </div>
+            ))}
+          </div>
+        </>}
+
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
